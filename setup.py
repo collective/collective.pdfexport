@@ -35,6 +35,7 @@ setup(name='collective.pdfexport',
           'plone.multilingualbehavior',
           'plone.app.versioningbehavior',
           'xhtml2pdf',
+          'pdfkit',
           # -*- Extra requirements: -*-
       ],
       extras_require={

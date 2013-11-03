@@ -2,15 +2,17 @@ from five import grok
 from collective.pdfexport.interfaces import IPDFExportCapable
 import xhtml2pdf.pisa as pisa
 from StringIO import StringIO
+from collective.pdfexport.interfaces import IPDFConverter
+from zope.component import getUtility
+from Products.CMFCore.interfaces import IContentish
 
 class PDFExportView(grok.View):
     grok.name('download_pdf')
-    grok.context(IPDFExportCapable)
+    grok.context(IContentish)
 
     def render(self):
-        html = self.context.restrictedTraverse('xhtml2pdf_view')().encode('utf-8')
-        result = StringIO()
-        pdf = pisa.CreatePDF(StringIO(html), result)
+        converter = getUtility(IPDFConverter)
+        result = converter.convert(self.context)
         out = result.getvalue()
         self.request.response.setHeader('Content-Type', 'application/pdf')
         self.request.response.setHeader('Content-Disposition', 
