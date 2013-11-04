@@ -16,8 +16,9 @@ class PDFExportView(grok.View):
         result = converter.convert(self.context, view=view)
         out = result.getvalue()
         self.request.response.setHeader('Content-Type', 'application/pdf')
-        self.request.response.setHeader('Content-Disposition', 
-            'attachment; filename=%s.pdf' % self.context.getId())
+        if not self.request.get('pdf-noattach', False):
+            self.request.response.setHeader('Content-Disposition', 
+                'attachment; filename=%s.pdf' % self.context.getId())
         self.request.response.setHeader('Content-Length', len(out))
         return out
 

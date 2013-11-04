@@ -21,6 +21,7 @@ class PDFKitPDFConverter(grok.GlobalUtility):
         out = pdfkit.from_string(html, False, options={
             '--print-media-type': None,
             '--disable-javascript': None,
+            '--quiet': None
             }, 
             configuration=self.config)
         return StringIO(out)
