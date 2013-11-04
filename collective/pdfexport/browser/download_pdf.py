@@ -12,7 +12,7 @@ class PDFExportView(grok.View):
 
     def render(self):
         converter = getUtility(IPDFConverter)
-        view = self.request.get('view', None)
+        view = self.request.get('pdf-view', None)
         result = converter.convert(self.context, view=view)
         out = result.getvalue()
         self.request.response.setHeader('Content-Type', 'application/pdf')

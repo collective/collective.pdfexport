@@ -6,6 +6,8 @@ from Products.CMFCore.interfaces import IContentish
 from plone.app.layout.viewlets import interfaces as manager
 from collective.pdfexport.interfaces import IProductSpecific
 import os
+import copy
+import urllib
 
 grok.templatedir('templates')
 
@@ -20,7 +22,13 @@ class PDFDownload(grok.Viewlet):
 
     def pdf_url(self):
         view_name = os.path.basename(self.request.getURL())
-        if view_name == 'view':
+        params = copy.copy(self.request.form)
+
+        if view_name != 'view':
+            params['pdf-view'] = view_name
+
+        if not params:
             return '%s/download_pdf' % self.context.absolute_url()
-        return '%s/download_pdf?view=%s' % (self.context.absolute_url(),
-                                            view_name)
+
+        qs = urllib.urlencode(params)
+        return '%s/download_pdf?%s' % (self.context.absolute_url(), qs)
