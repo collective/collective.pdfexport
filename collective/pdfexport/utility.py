@@ -15,15 +15,29 @@ class PDFKitPDFConverter(grok.GlobalUtility):
             config = pdfkit.configuration()
         self.config = config
 
+
+    def _options(self):
+        opts = {
+            '--print-media-type': None,
+            '--disable-javascript': None,
+            '--quiet': None,
+        }
+
+        auth = os.environ.get('WKHTMLTOPDF_HTTPAUTH', None)
+        if auth:
+            username, password = auth.split(':', 1)
+            opts['--username'] = username
+            opts['--password'] = password
+        return opts
+
     def convert(self, content, view=None):
         item = IPDFHTMLProvider(content)
         html = item.pdf_html(view=view)
-        out = pdfkit.from_string(html, False, options={
-            '--print-media-type': None,
-            '--disable-javascript': None,
-            '--quiet': None
-            }, 
-            configuration=self.config)
+        out = pdfkit.from_string(html, 
+            False, 
+            options=self.options(), 
+            configuration=self.config
+        )
         return StringIO(out)
 
 
