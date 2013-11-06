@@ -35,7 +35,7 @@ class PDFKitPDFConverter(grok.GlobalUtility):
         html = item.pdf_html(view=view)
         out = pdfkit.from_string(html, 
             False, 
-            options=self.options(), 
+            options=self._options(), 
             configuration=self.config
         )
         return StringIO(out)
