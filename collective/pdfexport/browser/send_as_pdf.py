@@ -3,6 +3,25 @@ from Products.CMFCore.interfaces import IContentish
 from zope.component import getUtility
 from zope.schema.interfaces import IVocabularyFactory
 import json
+from plone.z3cform.z2 import processInputs
+from z3c.form import form
+from zope.interface import Interface
+from zope import schema
+from z3c.form import field
+from z3c.form import button
+from plone.z3cform import layout
+from Products.CMFPlone.utils import safe_unicode
+from email.MIMEBase import MIMEBase
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
+from email import Encoders
+from collective.pdfexport.interfaces import IPDFConverter
+from zope.component import getUtility
+from Products.statusmessages.interfaces import IStatusMessage
+import json
+from plone import api
+from zope.component.hooks import getSite
+
 grok.templatedir('templates')
 
 class SendAsPDF(grok.View):
@@ -11,17 +30,124 @@ class SendAsPDF(grok.View):
     grok.template('send_as_pdf')
 
     def js(self):
+
+        config = {
+            'theme': 'facebook',
+            'tokenDelimiter': '\\n',
+            'preventDuplicates': True,
+        }
+
+        if self.defaults['sendaspdf-recipients']:
+            config['prePopulate'] = [{
+                'id': i, 'name': i
+            } for i in self.defaults['sendaspdf-recipients'].splitlines()]
+
         return '''
             $(document).ready(function () {
-                $('#sendaspdf-recipients').tokenInput('%s', {
-                      theme: "facebook",
-                      tokenDelimiter: "\\n",
-                      preventDuplicates: true
-                });
+                $('#sendaspdf-recipients').tokenInput('%s', %s);
             })
-        ''' % (self.context.absolute_url() + '/sendaspdf-recipients')
+        ''' % (
+            self.context.absolute_url() + '/sendaspdf-recipients',
+            json.dumps(config)
+        )
 
+    def update(self):
+        if self.request.method != 'POST':
+            self.defaults = {
+                'sendaspdf-recipients':'',
+                'sendaspdf-subject': '',
+                'sendaspdf-message': ''
+            } 
+            return
+          
+        recipients = self.request.get('sendaspdf-recipients', '').strip()
+        subject = self.request.get('sendaspdf-subject', '').strip()
+        message = self.request.get('sendaspdf-message', '').strip()
+        self.defaults = {
+            'sendaspdf-recipients': recipients,
+            'sendaspdf-subject': subject,
+            'sendaspdf-message': message
+        }
+        statusmessages = IStatusMessage(self.request)
+        if not subject:
+            statusmessages.add('Subject is required', type='error')
+        if not recipients:
+            statusmessages.add('Recipients is required', type='error')
+        if not message:
+            statusmessages.add('Message is required', type='error')
+        if not (subject and recipients and message):
+            return
 
+        self.send_email(
+            recipients=recipients.splitlines(),
+            subject=subject,
+            message=message
+        )
+
+        statusmessages.add('Emails sent')
+        self.request.response.redirect(self.context.absolute_url())
+
+    def send_email(self, recipients, subject, message):
+        mailhost = self.context.MailHost
+        
+        from_address = api.user.get_current().getProperty('email')
+
+        if not from_address:
+            from_address = self.context.email_from_address
+        
+        from_name = api.user.get_current().getProperty('fullname')
+
+        if not from_name:
+            from_name = self.context.email_from_name
+
+        source = '%s <%s>' % (from_name, from_address)
+
+        msg = MIMEMultipart()
+        msg['Subject'] = subject
+        msg['From'] = source
+        
+        body = u'''
+You are receiving this mail because someone read a page at %(sitename)s and 
+thought it might interest you.
+
+It is sent by %(sender)s with the following comment:
+
+"%(message)s"
+
+See the attachment for the page.
+        ''' % {
+            'sitename': getSite().title,
+            'sender': from_name,
+            'message': message
+        }
+        htmlPart = MIMEText(message, 'plain', 'utf-8')
+        msg.attach(htmlPart)
+
+        converter = getUtility(IPDFConverter)
+        view = self.request.get('pdf-view', None)
+        pdf = converter.convert(self.context, view=view)
+
+        attachment = MIMEBase('application', 'pdf')
+        attachment.set_payload(pdf.buf)
+        Encoders.encode_base64(attachment)
+        attachment.add_header('Content-Disposition', 'attachment',
+                          filename=subject + '.pdf')
+        msg.attach(attachment)
+
+        for recipient in recipients:
+            # skip broken recipients
+            if not recipient:
+                continue
+            if '@' not in recipient:
+                continue
+
+            del msg['To']
+            msg['To'] = recipient
+            mailhost.send(msg.as_string())
+     
+
+         
+            
 class Recipients(grok.View):
     grok.context(IContentish)
     grok.name('sendaspdf-recipients')
