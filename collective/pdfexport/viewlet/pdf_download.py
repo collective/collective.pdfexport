@@ -32,3 +32,16 @@ class PDFDownload(grok.Viewlet):
 
         qs = urllib.urlencode(params)
         return '%s/download_pdf?%s' % (self.context.absolute_url(), qs)
+
+    def sendaspdf_url(self):
+        view_name = os.path.basename(self.request.getURL())
+        params = copy.copy(self.request.form)
+
+        if view_name != 'view':
+            params['pdf-view'] = view_name
+
+        if not params:
+            return '%s/send_as_pdf' % self.context.absolute_url()
+
+        qs = urllib.urlencode(params)
+        return '%s/send_as_pdf?%s' % (self.context.absolute_url(), qs)
