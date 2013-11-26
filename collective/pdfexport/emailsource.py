@@ -15,7 +15,7 @@ class DefaultEmailSource(grok.Adapter):
     def __init__(self, context):
         self.context = context
 
-    @ram.cache(lambda *args: time() // (60 * 60))
+    @ram.cache(lambda *args: 'UserSource%s' % (time() // (60 * 60)))
     def options(self):
         vocab = getUtility(
             IVocabularyFactory,
@@ -56,3 +56,40 @@ class DefaultEmailSource(grok.Adapter):
         return [
             v for v in options if query.lower() in v['title'].lower()
         ]
+
+
+
+
+
+
+class GroupEmailSource(grok.Adapter):
+    grok.context(Interface)
+    grok.implements(IPDFEmailSource)
+    grok.name('groupid')
+
+    @ram.cache(lambda *args: 'GroupSource%s' % (time() // (60 * 60)))
+    def options(self):
+        values = ['Group:%s' % g.id for g in api.group.get_groups()]
+        return [
+            {'value': v, 'title': v} for v in values
+        ]
+
+    def search(self, query):
+        options = self.options()
+        return [
+            v for v in options if query.lower() in v['title'].lower()
+        ]
+
+    def can_expand(self, value):
+        return value.startswith('Group:')
+
+    def expand_value(self, value):
+        values = []
+        groupid = value.replace('Group:', '')
+        users = api.user.get_users(groupname=groupid)
+        for user in users:
+            values.append('%s <%s>' % (
+                user.getProperty('fullname'),
+                user.getProperty('email')
+            ))
+        return list(set(values))

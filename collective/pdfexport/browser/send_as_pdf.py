@@ -34,7 +34,7 @@ class SendAsPDF(grok.View):
 
         config = {
             'theme': 'facebook',
-            'tokenDelimiter': '\\n',
+            'tokenDelimiter': '\n',
             'preventDuplicates': True,
         }
 
@@ -81,7 +81,6 @@ class SendAsPDF(grok.View):
 
         expanded_recipients = []
         adapters = getAdapters((self.context,), IPDFEmailSource)
-
         for recipient in recipients.splitlines():
             expanded = False
             for name, adapter in adapters:
@@ -93,7 +92,7 @@ class SendAsPDF(grok.View):
                 expanded_recipients.append(recipient)
 
         self.send_email(
-            recipients=expanded_recipients,
+            recipients=list(set(expanded_recipients)),
             subject=subject,
             message=message
         )
