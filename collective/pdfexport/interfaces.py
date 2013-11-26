@@ -14,3 +14,5 @@ class IPDFHTMLProvider(Interface):
     def pdf_html(view):
         """ get pdf html of current content """
 
+class IPDFEmailSource(Interface):
+    pass

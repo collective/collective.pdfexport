@@ -16,11 +16,12 @@ from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 from email import Encoders
 from collective.pdfexport.interfaces import IPDFConverter
-from zope.component import getUtility
 from Products.statusmessages.interfaces import IStatusMessage
 import json
 from plone import api
 from zope.component.hooks import getSite
+from zope.component import getAdapters
+from collective.pdfexport.interfaces import IPDFEmailSource
 
 grok.templatedir('templates')
 
@@ -78,8 +79,21 @@ class SendAsPDF(grok.View):
         if not (subject and recipients and message):
             return
 
+        expanded_recipients = []
+        adapters = getAdapters((self.context,), IPDFEmailSource)
+
+        for recipient in recipients.splitlines():
+            expanded = False
+            for name, adapter in adapters:
+                if adapter.can_expand(recipient):
+                    expanded_recipients += adapter.expand_value(recipient)
+                    expanded = True
+                    break
+            if not expanded:
+                expanded_recipients.append(recipient)
+
         self.send_email(
-            recipients=recipients.splitlines(),
+            recipients=expanded_recipients,
             subject=subject,
             message=message
         )
@@ -154,26 +168,21 @@ class Recipients(grok.View):
 
     def render(self):
         self.request.response.setHeader("Content-type", "application/json")
+        adapters = getAdapters((self.context,), IPDFEmailSource)
 
-        vocab = getUtility(IVocabularyFactory,
-            name='collective.pdfexport.sendaspdfrecipients'
-        )(self.context)
+        keys = []
         if 'q' in self.request.keys():
-            query = self.request['q']
-            keys = [(k.value, k.title) for k in vocab if (
-                        query.lower() in k.title.lower())]
-        else:
-            keys = []
+            q = self.request['q']
+            for name, adapter in adapters:
+                keys += adapter.search(q)
 
         # we will return up to 10 tokens only
         tokens = map(self._tokenize, keys[:10])
         return json.dumps(tokens)
 
-    def _tokenize(self, value_title):
-        value, title = value_title
-        if isinstance(value, str):
-            value = value.decode('utf-8')
-            title = title.decode('utf-8')
+    def _tokenize(self, key):
+        value = key['value'].decode('utf-8')
+        title = key['title'].decode('utf-8')
 
         return {'id': '%s' % value.replace(u"'", u"\\'"),
                 'name': '%s' % title.replace(u"'", u"\\'")}
