@@ -133,7 +133,7 @@ See the attachment for the page.
             'sender': from_name,
             'message': message
         }
-        htmlPart = MIMEText(message, 'plain', 'utf-8')
+        htmlPart = MIMEText(body, 'plain', 'utf-8')
         msg.attach(htmlPart)
 
         converter = getUtility(IPDFConverter)
@@ -144,7 +144,7 @@ See the attachment for the page.
         attachment.set_payload(pdf.buf)
         Encoders.encode_base64(attachment)
         attachment.add_header('Content-Disposition', 'attachment',
-                          filename=subject + '.pdf')
+                          filename=self.context.Title() + '.pdf')
         msg.attach(attachment)
 
         for recipient in recipients:
