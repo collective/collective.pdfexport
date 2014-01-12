@@ -30,6 +30,8 @@ class SendAsPDF(grok.View):
     grok.name('send_as_pdf')
     grok.template('send_as_pdf')
 
+    label = u'Send this page as PDF'
+
     def js(self):
 
         config = {
@@ -186,3 +188,128 @@ class Recipients(grok.View):
         return {'id': '%s' % value.replace(u"'", u"\\'"),
                 'name': '%s' % title.replace(u"'", u"\\'")}
 
+class SendThis(grok.View):
+    grok.context(IContentish)
+    grok.name('sendthis_form')
+    grok.template('send_as_pdf')
+
+    label = u'Send this page'
+
+    def js(self):
+
+        config = {
+            'theme': 'facebook',
+            'tokenDelimiter': '\n',
+            'preventDuplicates': True,
+        }
+
+        if self.defaults['sendaspdf-recipients']:
+            config['prePopulate'] = [{
+                'id': i, 'name': i
+            } for i in self.defaults['sendaspdf-recipients'].splitlines()]
+
+        return '''
+            $(document).ready(function () {
+                $('#sendaspdf-recipients').tokenInput('%s', %s);
+            })
+        ''' % (
+            self.context.absolute_url() + '/sendaspdf-recipients',
+            json.dumps(config)
+        )
+
+    def update(self):
+        if self.request.method != 'POST':
+            self.defaults = {
+                'sendaspdf-recipients':'',
+                'sendaspdf-subject': '',
+                'sendaspdf-message': ''
+            } 
+            return
+          
+        recipients = self.request.get('sendaspdf-recipients', '').strip()
+        subject = self.request.get('sendaspdf-subject', '').strip()
+        message = self.request.get('sendaspdf-message', '').strip()
+        self.defaults = {
+            'sendaspdf-recipients': recipients,
+            'sendaspdf-subject': subject,
+            'sendaspdf-message': message
+        }
+        statusmessages = IStatusMessage(self.request)
+        if not subject:
+            statusmessages.add('Subject is required', type='error')
+        if not recipients:
+            statusmessages.add('Recipients is required', type='error')
+        if not message:
+            statusmessages.add('Message is required', type='error')
+        if not (subject and recipients and message):
+            return
+
+        expanded_recipients = []
+        adapters = getAdapters((self.context,), IPDFEmailSource)
+        for recipient in recipients.splitlines():
+            expanded = False
+            for name, adapter in adapters:
+                if adapter.can_expand(recipient):
+                    expanded_recipients += adapter.expand_value(recipient)
+                    expanded = True
+                    break
+            if not expanded:
+                expanded_recipients.append(recipient)
+
+        self.send_email(
+            recipients=list(set(expanded_recipients)),
+            subject=subject,
+            message=message
+        )
+
+        statusmessages.add('Emails sent')
+        self.request.response.redirect(self.context.absolute_url())
+
+    def send_email(self, recipients, subject, message):
+        mailhost = self.context.MailHost
+        
+        from_address = api.user.get_current().getProperty('email')
+
+        if not from_address:
+            from_address = self.context.email_from_address
+        
+        from_name = api.user.get_current().getProperty('fullname')
+
+        if not from_name:
+            from_name = self.context.email_from_name
+
+        source = '%s <%s>' % (from_name, from_address)
+
+        msg = MIMEMultipart()
+        msg['Subject'] = subject
+        msg['From'] = source
+        
+        body = u'''
+You are receiving this mail because someone read a page at %(sitename)s and 
+thought it might interest you.
+
+It is sent by %(sender)s with the following comment:
+
+"%(message)s"
+
+%(url)s
+        ''' % {
+            'sitename': getSite().title,
+            'sender': from_name,
+            'message': message,
+            'url':self.context.absolute_url()
+        }
+        htmlPart = MIMEText(body, 'plain', 'utf-8')
+        msg.attach(htmlPart)
+
+        for recipient in recipients:
+            # skip broken recipients
+            if not recipient:
+                continue
+            if '@' not in recipient:
+                continue
+
+            del msg['To']
+            msg['To'] = recipient
+            mailhost.send(msg.as_string())
+ 
