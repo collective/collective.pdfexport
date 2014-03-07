@@ -23,7 +23,7 @@ class DefaultEmailSource(grok.Adapter):
         )(self.context)
         values = set()
         for i in vocab:
-            user = api.user.get(i.value)
+            user = api.user.get(i.token)
             if not user:
                 continue
             fullname = user.getProperty('fullname')
