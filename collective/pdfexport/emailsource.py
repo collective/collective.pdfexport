@@ -15,7 +15,7 @@ class DefaultEmailSource(grok.Adapter):
     def __init__(self, context):
         self.context = context
 
-    @ram.cache(lambda *args: 'UserSource%s' % (time() // (60 * 60)))
+    #@ram.cache(lambda *args: 'UserSource%s' % (time() // (60 * 60)))
     def options(self):
         vocab = getUtility(
             IVocabularyFactory,
@@ -23,16 +23,15 @@ class DefaultEmailSource(grok.Adapter):
         )(self.context)
         values = set()
         for i in vocab:
-            user = api.user.get(i.value)
+            user = api.user.get(i.token)
             if not user:
                 continue
             fullname = user.getProperty('fullname')
-            email = user.getProperty('email')
-            if not email:
-                continue
-            value = '%s <%s>' % (fullname, email)
-            values.add((i.value, fullname))
-        return [
+	    userid = i.token
+
+            value = '%s <%s>' % (fullname, userid)
+            values.add((userid, fullname))
+	return [
             {'value': 'UserID:%s' % v, 'title': t} for v, t in values
         ]
 
@@ -56,11 +55,6 @@ class DefaultEmailSource(grok.Adapter):
         return [
             v for v in options if query.lower() in v['title'].lower()
         ]
-
-
-
-
-
 
 class GroupEmailSource(grok.Adapter):
     grok.context(Interface)
