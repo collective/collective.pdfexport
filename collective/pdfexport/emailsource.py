@@ -24,16 +24,20 @@ class DefaultEmailSource(grok.Adapter):
         values = set()
         for i in vocab:
             user = api.user.get(i.token)
+            
             if not user:
                 continue
+            
             fullname = user.getProperty('fullname')
-	    userid = i.token
-
+            userid = i.token
             value = '%s <%s>' % (fullname, userid)
             values.add((userid, fullname))
-	return [
-            {'value': 'UserID:%s' % v, 'title': t} for v, t in values
-        ]
+
+        import ipdb; ipdb.set_trace()
+        
+        return [
+                {'value': 'UserID:%s' % v, 'title': t} for v, t in values
+            ]
 
     def can_expand(self, value):
         return value.startswith('UserID:')
