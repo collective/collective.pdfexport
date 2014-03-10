@@ -15,7 +15,7 @@ class DefaultEmailSource(grok.Adapter):
     def __init__(self, context):
         self.context = context
 
-    #@ram.cache(lambda *args: 'UserSource%s' % (time() // (60 * 60)))
+    @ram.cache(lambda *args: 'UserSource%s' % (time() // (60 * 60)))
     def options(self):
         vocab = getUtility(
             IVocabularyFactory,
