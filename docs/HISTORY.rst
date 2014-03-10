@@ -4,7 +4,9 @@ Changelog
 1.0a10 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Update bootstrap.py
+- Use token instead of values for emailsource.py as emailid
+  does not always return user data with plone.api lookup
 
 
 1.0a9 (2014-01-13)
