@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = '1.0a11'
+version = '1.0a12.dev0'
 
 setup(name='collective.pdfexport',
       version=version,
