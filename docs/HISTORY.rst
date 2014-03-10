@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.0a10 (unreleased)
+1.0a10 (2014-03-10)
 -------------------
 
 - Update bootstrap.py
