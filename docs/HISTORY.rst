@@ -1,10 +1,11 @@
 Changelog
 =========
 
-1.0a11 (unreleased)
+1.0a11 (2014-03-10)
 -------------------
 
-- Nothing changed yet.
+- Fix UserId in values stored as email, not userid, names now
+  expand properly [kaerumy]
 
 
 1.0a10 (2014-03-10)
