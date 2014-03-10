@@ -33,8 +33,6 @@ class DefaultEmailSource(grok.Adapter):
             value = '%s <%s>' % (fullname, userid)
             values.add((userid, fullname))
 
-        import ipdb; ipdb.set_trace()
-        
         return [
                 {'value': 'UserID:%s' % v, 'title': t} for v, t in values
             ]
